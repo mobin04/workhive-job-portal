@@ -45,7 +45,7 @@ const jobSchema = new mongoose.Schema(
 );
 
 // Indexing for improve performance.
-jobSchema.index({ title: 1, location: 1, company: 1 });
+jobSchema.index({ title: 'text', location: 'text', company: 'text' });
 
 // Add a virtual id field same as _id
 jobSchema.plugin(addIdVirtual);

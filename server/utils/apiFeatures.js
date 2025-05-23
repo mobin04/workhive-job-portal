@@ -24,7 +24,7 @@ class APIFeatures {
 
   // Filtering
   filter() {
-    const excludedFields = ['page', 'limit', 'sort', 'order'];
+    const excludedFields = ['page', 'limit', 'sort', 'order', 'search'];
     const filters = { ...this.query };
     excludedFields.forEach((field) => delete filters[field]);
 
@@ -32,7 +32,18 @@ class APIFeatures {
       filters.salary = { $gte: parseInt(filters.salary) };
     }
 
-    this.filters = filters;
+    const finalFilter = { ...filters };
+
+    if (this.query.search) {
+      const searchRegex = new RegExp(this.query.search, 'i');
+      finalFilter.$or = [
+        { title: { $regex: searchRegex } },
+        { company: { $regex: searchRegex } },
+        { location: { $regex: searchRegex } },
+      ];
+    }
+
+    this.filters = finalFilter;
     return this;
   }
 
