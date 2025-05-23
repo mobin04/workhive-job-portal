@@ -1,19 +1,27 @@
 const Job = require('../models/jobModel');
+const APIFeatures = require('../utils/apiFeatures');
 const AppError = require('../utils/appError');
 const catchAsync = require('../utils/catchAsync');
 const filteredObject = require('../utils/filteredObject');
 
 // Get all jobs
 exports.getAllJobs = catchAsync(async (req, res, next) => {
-  const jobs = await Job.find().lean();
+  const jobService = new APIFeatures(req.query).paginate().sort().filter();
 
-  if (!jobs || jobs.length === 0) {
-    return next(new AppError('No jobs found :(', 404));
+  const jobs = await jobService.fetchJobs();
+
+  if (jobs.length === 0) {
+    return next(new AppError('No Jobs Found :)', 404));
   }
+  
+  const totalJobs = await Job.countDocuments(jobService.filters);
+  const totalPages = Math.ceil(totalJobs / jobService.pagination.limit)
 
   res.status(200).json({
     status: 'success',
     length: jobs.length,
+    totalJobs,
+    totalPages,
     data: {
       jobs,
     },
@@ -78,7 +86,7 @@ exports.updateJob = catchAsync(async (req, res, next) => {
     return next(new AppError('No job found with that id', 404));
   }
 
-  // Get the required fields only 
+  // Get the required fields only
   const filteredProperty = filteredObject(
     req.body,
     'title',
@@ -96,7 +104,7 @@ exports.updateJob = catchAsync(async (req, res, next) => {
   const updatedJob = await Job.findByIdAndUpdate(jobId, filteredProperty, {
     new: true,
     runValidators: true,
-  });  
+  });
 
   if (!updatedJob) {
     return next(new AppError('Error while updating job'));
