@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const addIdVirtual = require('../utils/idVirtualPlugin');
 
 const applicationSchema = new mongoose.Schema(
   {
@@ -34,6 +35,9 @@ const applicationSchema = new mongoose.Schema(
 );
 
 applicationSchema.index({ job: 1, applicant: 1 });
+
+// Add a virtual id field same as _id
+applicationSchema.plugin(addIdVirtual);
 
 const Application = mongoose.model('Application', applicationSchema);
 module.exports = Application;

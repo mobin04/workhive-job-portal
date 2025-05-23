@@ -1,4 +1,6 @@
 const mongoose = require('mongoose');
+const bycrypt = require('bcryptjs');
+const addIdVirtual = require('../utils/idVirtualPlugin');
 
 const userSchema = new mongoose.Schema(
   {
@@ -15,6 +17,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: [true, 'User must have a password!'],
       minlength: [6, 'Password must have atleast 6-digit characters'],
+      select: false,
     },
     role: {
       type: String,
@@ -39,6 +42,16 @@ const userSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+// Add a virtual id field same as _id
+userSchema.plugin(addIdVirtual);
+
+// Hashing the password if it's changed.
+userSchema.pre('save', async function(next) {
+  if (!this.isModified('password')) return next();
+  this.password = await bycrypt.hash(this.password, 10);
+  next();
+});
 
 const User = mongoose.model('User', userSchema);
 module.exports = User;
