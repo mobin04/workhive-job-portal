@@ -46,8 +46,16 @@ const userSchema = new mongoose.Schema(
 // Add a virtual id field same as _id
 userSchema.plugin(addIdVirtual);
 
+// Checking provider password is match to user password
+userSchema.methods.isPasswordCorrect = async function (
+  candidatePassword,
+  userPassword
+) {
+  return await bycrypt.compare(candidatePassword, userPassword);
+};
+
 // Hashing the password if it's changed.
-userSchema.pre('save', async function(next) {
+userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
   this.password = await bycrypt.hash(this.password, 10);
   next();
