@@ -4,8 +4,9 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
-const jobRoutes = require('./routes/jobRoutes')
+const jobRoutes = require('./routes/jobRoutes');
 const globalErrorHandling = require('./middlewares/errorHandling');
+const applicationRoutes = require('./routes/ApplicationRoutes');
 
 dotEnv.config();
 connectDB();
@@ -17,6 +18,7 @@ app.use(cookieParser());
 
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/jobs', jobRoutes);
+app.use('/api/v1/applications', applicationRoutes);
 
 app.use(globalErrorHandling);
 

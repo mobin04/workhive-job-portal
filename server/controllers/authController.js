@@ -3,6 +3,7 @@ const User = require('../models/userModel');
 const AppError = require('../utils/appError');
 const catchAsync = require('../utils/catchAsync');
 const filteredObject = require('../utils/filteredObject');
+const handleFileUpload = require('../utils/fileUploads');
 
 // /register
 exports.registerUser = catchAsync(async (req, res, next) => {
@@ -19,8 +20,16 @@ exports.registerUser = catchAsync(async (req, res, next) => {
     email: req.body.email,
     password: req.body.password,
     role: req.body.role,
-    coverImage: req.body.coverImage,
   });
+
+  const coverImageUrl = await handleFileUpload.uploadImage(
+    req.file,
+    'coverImage',
+    newUser.id
+  );
+
+  newUser.coverImage = coverImageUrl;
+  await newUser.save();
 
   createSendToken(newUser, 201, req, res);
 });
@@ -71,7 +80,6 @@ exports.getUser = catchAsync(async (req, res, next) => {
   });
 });
 
-
 // /profile (patch)
 exports.updateProfile = catchAsync(async (req, res, next) => {
   if (req.body.password) {
@@ -79,6 +87,18 @@ exports.updateProfile = catchAsync(async (req, res, next) => {
   }
 
   const filteredProperty = filteredObject(req.body, 'name', 'email');
+
+  if (req.file) {
+    // Delete old image
+    await handleFileUpload.deleteImage('coverImage', req.user.id);
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    filteredProperty.coverImage = await handleFileUpload.uploadImage(
+      req.file,
+      'coverImage',
+      req.user.id
+    );
+  }
 
   const user = await User.findByIdAndUpdate(req.user.id, filteredProperty, {
     new: true,

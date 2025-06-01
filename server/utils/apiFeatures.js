@@ -35,11 +35,12 @@ class APIFeatures {
     const finalFilter = { ...filters };
 
     if (this.query.search) {
-      const searchRegex = new RegExp(this.query.search, 'i');
+      const searchRegex = new RegExp(this.query.search, 'i'); // Case-insensitive search
+
       finalFilter.$or = [
-        { title: { $regex: searchRegex } },
-        { company: { $regex: searchRegex } },
-        { location: { $regex: searchRegex } },
+        { title: searchRegex },
+        { company: searchRegex },
+        { location: searchRegex },
       ];
     }
 

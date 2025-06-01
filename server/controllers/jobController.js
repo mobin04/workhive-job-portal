@@ -13,9 +13,9 @@ exports.getAllJobs = catchAsync(async (req, res, next) => {
   if (jobs.length === 0) {
     return next(new AppError('No Jobs Found :)', 404));
   }
-  
+
   const totalJobs = await Job.countDocuments(jobService.filters);
-  const totalPages = Math.ceil(totalJobs / jobService.pagination.limit)
+  const totalPages = Math.ceil(totalJobs / jobService.pagination.limit);
 
   res.status(200).json({
     status: 'success',
@@ -86,6 +86,13 @@ exports.updateJob = catchAsync(async (req, res, next) => {
     return next(new AppError('No job found with that id', 404));
   }
 
+  if (
+    isJobExist.employer.toString() !== req.user.id &&
+    req.user.role !== 'admin'
+  ) {
+    return next(new AppError('You are not allowed to update this job :)', 403));
+  }
+
   // Get the required fields only
   const filteredProperty = filteredObject(
     req.body,
@@ -124,9 +131,13 @@ exports.deleteJob = catchAsync(async (req, res, next) => {
   const { id } = req.params;
 
   const job = await Job.findById(id);
-
-  if (job.employer.toString() !== req.user.id) {
+  
+  if (!job) {
     return next(new AppError('No job found with that given id', 404));
+  }
+
+  if (job.employer.toString() !== req.user.id && req.user.role !== 'admin') {
+    return next(new AppError('You are not allowed to delete this job :)', 403));
   }
 
   await job.deleteOne();

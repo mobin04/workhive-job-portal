@@ -13,7 +13,7 @@ router
 router
   .route('/:id')
   .get(authMiddleware.protect, isValidObjectId, jobController.getSingleJob)
-  .patch(authMiddleware.protect, isValidObjectId, jobController.updateJob)
-  .delete(authMiddleware.protect, isValidObjectId, jobController.deleteJob);
+  .patch(authMiddleware.protect,authMiddleware.restrictTo('admin', 'employer'), isValidObjectId, jobController.updateJob)
+  .delete(authMiddleware.protect,authMiddleware.restrictTo('admin', 'employer'), isValidObjectId, jobController.deleteJob);
 
 module.exports = router;
