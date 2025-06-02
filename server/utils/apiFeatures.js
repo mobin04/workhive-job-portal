@@ -41,6 +41,9 @@ class APIFeatures {
         { title: searchRegex },
         { company: searchRegex },
         { location: searchRegex },
+        { name: searchRegex },
+        { email: searchRegex },
+        { role: searchRegex },
       ];
     }
 
@@ -54,6 +57,7 @@ class APIFeatures {
       .sort(this.sorting)
       .skip(this.pagination.skip)
       .limit(this.pagination.limit)
+      .select('-applications')
       .lean();
   }
 }

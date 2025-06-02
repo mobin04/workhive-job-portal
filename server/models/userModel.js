@@ -23,7 +23,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       enum: {
-        values: ['job_seeker', 'employer'],
+        values: ['job_seeker', 'employer', 'admin'],
         message: 'Please use job_seeker or employer in user role',
       },
       required: [true, 'User must have a role!'],

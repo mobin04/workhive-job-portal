@@ -20,9 +20,20 @@ const applicationSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: {
-        values: ['pending', 'accepted', 'rejected'],
+        values: ['pending', 'accepted', 'rejected', 'withdrawn'],
       },
       default: 'pending',
+    },
+    activeStatus: {
+      type: String,
+      enum: {
+        values: ['active', 'withdrawn']
+      },
+      default: 'active'
+    },
+    expiresAt: {
+      type: Date,
+      default: null
     },
     createdAt: {
       type: Date,
@@ -35,9 +46,13 @@ const applicationSchema = new mongoose.Schema(
 );
 
 applicationSchema.index({ job: 1, applicant: 1 });
+applicationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 });
+
+applicationSchema.plugin(addIdVirtual);
 
 // Add a virtual id field same as _id
 applicationSchema.plugin(addIdVirtual);
 
 const Application = mongoose.model('Application', applicationSchema);
+
 module.exports = Application;

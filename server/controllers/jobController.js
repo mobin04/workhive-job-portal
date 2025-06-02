@@ -16,7 +16,7 @@ exports.getAllJobs = catchAsync(async (req, res, next) => {
 
   const totalJobs = await Job.countDocuments(jobService.filters);
   const totalPages = Math.ceil(totalJobs / jobService.pagination.limit);
-
+  
   res.status(200).json({
     status: 'success',
     length: jobs.length,
