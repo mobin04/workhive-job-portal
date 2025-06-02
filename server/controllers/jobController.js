@@ -16,7 +16,7 @@ exports.getAllJobs = catchAsync(async (req, res, next) => {
 
   const totalJobs = await Job.countDocuments(jobService.filters);
   const totalPages = Math.ceil(totalJobs / jobService.pagination.limit);
-  
+
   res.status(200).json({
     status: 'success',
     length: jobs.length,
@@ -36,7 +36,8 @@ exports.createNewJob = catchAsync(async (req, res, next) => {
     'description',
     'company',
     'location',
-    'salary'
+    'salary',
+    'category'
   );
 
   const newJob = await Job.create({
@@ -100,7 +101,8 @@ exports.updateJob = catchAsync(async (req, res, next) => {
     'description',
     'company',
     'location',
-    'salary'
+    'salary', 
+    'category'
   );
 
   // Check if user does't pass anything in the reqest body
@@ -131,7 +133,7 @@ exports.deleteJob = catchAsync(async (req, res, next) => {
   const { id } = req.params;
 
   const job = await Job.findById(id);
-  
+
   if (!job) {
     return next(new AppError('No job found with that given id', 404));
   }
@@ -145,5 +147,65 @@ exports.deleteJob = catchAsync(async (req, res, next) => {
   res.status(204).json({
     data: 'success',
     message: 'job deleted',
+  });
+});
+
+// Renew job to 30 days
+exports.renewJob = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+
+  const job = await Job.findById(id);
+
+  if (!job) {
+    return next(new AppError('No job found with that ID!', 404));
+  }
+
+  if (
+    job.employer._id.toString() !== req.user.id &&
+    !['admin'].includes(req.user.role)
+  ) {
+    return next(
+      new AppError('You dont have permission to renew this job!', 403)
+    );
+  }
+
+  if (job.isRenewed) {
+    return next(new AppError('You already renewed this job', 400));
+  }
+  await job.renewExpiration();
+
+  res.status(201).json({
+    status: 'success',
+    message: 'Job expiration extended by 30 days!',
+  });
+});
+
+// Close job
+exports.closeJob = catchAsync(async (req, res, next) => {
+  const { id } = req.params; // JOB ID
+
+  const job = await Job.findById(id);
+
+  if (!job) {
+    return next(new AppError('No job found with that ID!', 404));
+  }
+
+  if (
+    job.employer._id.toString() !== req.user.id &&
+    req.user.role !== 'admin'
+  ) {
+    return next(new AppError('You are not allowed to close this job', 403));
+  }
+
+  if (job.status === 'closed') {
+    return next(new AppError('This job is already closed!', 400));
+  }
+
+  job.status = 'closed';
+  await job.save();
+
+  res.status(200).json({
+    status: 'success',
+    message: 'Job successfully closed',
   });
 });

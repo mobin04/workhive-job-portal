@@ -2,6 +2,7 @@ const Application = require('../models/applicationModel');
 const Job = require('../models/jobModel');
 const User = require('../models/userModel');
 const APIFeatures = require('../utils/apiFeatures');
+const AppError = require('../utils/appError');
 const catchAsync = require('../utils/catchAsync');
 
 // Get all users for admin
@@ -63,3 +64,4 @@ exports.deleteUserById = catchAsync(async (req, res, next) => {
     message: 'User and all associated records successfully deleted!',
   });
 });
+

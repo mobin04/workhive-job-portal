@@ -9,6 +9,7 @@ const globalErrorHandling = require('./middlewares/errorHandling');
 const applicationRoutes = require('./routes/applicationRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const employerRoutes = require('./routes/employerRoutes');
+const statisticsRoutes = require('./routes/statisticsRoutes');
 
 dotEnv.config();
 connectDB();
@@ -23,6 +24,7 @@ app.use('/api/v1/jobs', jobRoutes);
 app.use('/api/v1/applications', applicationRoutes);
 app.use('/api/v1/employer', employerRoutes);
 app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1/statistics', statisticsRoutes);
 
 app.use(globalErrorHandling);
 

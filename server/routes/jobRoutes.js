@@ -29,6 +29,23 @@ router
     isValidObjectId,
     jobController.deleteJob
   );
+
+router.patch(
+  '/:id/renew-job',
+  authMiddleware.protect,
+  authMiddleware.restrictTo('employer', 'admin'),
+  isValidObjectId,
+  jobController.renewJob
+);
+
+router.patch(
+  '/:id/close',
+  authMiddleware.protect,
+  authMiddleware.restrictTo('admin', 'employer'),
+  isValidObjectId,
+  jobController.closeJob
+);
+
 router.get(
   '/:id/applications',
   authMiddleware.protect,
