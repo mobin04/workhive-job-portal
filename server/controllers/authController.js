@@ -1,9 +1,29 @@
+// const fetch = require('node-fetch');
+const UAParser = require('ua-parser-js'); // Get Device Info
 const { createSendToken } = require('../middlewares/authMiddleware');
 const User = require('../models/userModel');
 const AppError = require('../utils/appError');
 const catchAsync = require('../utils/catchAsync');
 const filteredObject = require('../utils/filteredObject');
 const handleFileUpload = require('../utils/fileUploads');
+const Email = require('../utils/email');
+
+// Get location based on IP
+async function getGeoLocation(ip) {
+  const response = await fetch(
+    `https://ipinfo.io/${ip}/json?token=${process.env.IPINFO_API_KEY}`
+  );
+  const data = await response.json();
+  return data.city
+    ? `${data.city}, ${data.region}, ${data.country}`
+    : 'Unknown';
+}
+
+async function getPublicIP() {
+  const response = await fetch('https://api64.ipify.org?format=json');
+  const data = await response.json();
+  return data.ip; // ✅ Returns your real public IP
+}
 
 // /register
 exports.registerUser = catchAsync(async (req, res, next) => {
@@ -31,11 +51,14 @@ exports.registerUser = catchAsync(async (req, res, next) => {
   newUser.coverImage = coverImageUrl;
   await newUser.save();
 
+  await new Email(newUser, '').sendWelcome();
+
   createSendToken(newUser, 201, req, res);
 });
 
 // /login
 exports.loginUser = catchAsync(async (req, res, next) => {
+  const parser = new UAParser();
   const { email, password } = req.body;
 
   if (!email || !password) {
@@ -54,6 +77,24 @@ exports.loginUser = catchAsync(async (req, res, next) => {
     return next(new AppError('Incorrect email or password!', 401));
   }
 
+  // For Email Notification.
+  const ip = await getPublicIP();
+  const location = await getGeoLocation(ip);
+  const deviceInfo = parser.setUA(req.headers['user-agent']).getResult();
+
+  const loginDetails = {
+    // time: new Date.toLocaleString(),
+    location,
+    device: {
+      browser: deviceInfo.browser.name,
+      // os: deviceInfo.os.name,
+      type: deviceInfo.device.type || 'Desktop',
+    },
+  };
+
+  // Sent email
+  await new Email(existingUser, '', {loginDetails}).sendLoginEmail();
+  
   createSendToken(existingUser, 200, req, res);
 });
 
