@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Your WorkHive Verification Code</title>
+    <title>Your WorkHive Login Code</title>
     <style>
       * {
         margin: 0;
@@ -98,7 +98,7 @@
       .message {
         font-size: 16px;
         color: #64748b;
-        margin-bottom: 35px;
+        margin-bottom: 40px;
         line-height: 1.7;
         max-width: 480px;
         margin-left: auto;
@@ -156,44 +156,34 @@
         line-height: 1.5;
       }
 
-      .otp-validity {
-        color: #ef4444;
-        font-size: 14px;
-        font-weight: 600;
-      }
-
-      .instructions {
+      .expiry-info {
         background: #fef3c7;
         border: 1px solid #fbbf24;
         border-radius: 8px;
         padding: 20px;
         margin: 30px 0;
-        text-align: left;
-      }
-
-      .instructions h3 {
-        color: #92400e;
-        font-size: 16px;
-        font-weight: 600;
-        margin-bottom: 10px;
-        display: flex;
-        align-items: center;
-      }
-
-      .instructions h3::before {
-        content: '⚠️';
-        margin-right: 8px;
-      }
-
-      .instructions ul {
-        color: #92400e;
         font-size: 14px;
-        margin-left: 20px;
-        line-height: 1.6;
+        color: #92400e;
+        text-align: center;
       }
 
-      .instructions li {
+      .expiry-info strong {
+        display: block;
         margin-bottom: 5px;
+        font-size: 16px;
+        color: #78350f;
+      }
+
+      .security-notice {
+        background: #fef2f2;
+        border: 1px solid #fca5a5;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 25px 0;
+        font-size: 14px;
+        color: #991b1b;
+        text-align: left;
+        line-height: 1.6;
       }
 
       .footer {
@@ -268,40 +258,43 @@
       </div>
 
       <div class="content">
-        <div class="security-icon">🔐</div>
+        <img class="security-icon" src="{{coverImageUrl}}" alt="" />
 
         <h2 class="greeting">Hi <span class="username">{{userName}}</span>,</h2>
 
         <p class="message">
-          We received a request to verify your account. Please use the
-          verification code below to complete your authentication. This code is
-          valid only 10 minutes.
+          We received a request to sign in to your WorkHive account. Please use
+          the verification code below to complete your login.
         </p>
 
         <div class="otp-container">
           <div class="otp-label">Your Verification Code</div>
           <div class="otp-code">{{otpCode}}</div>
           <div class="otp-note">
-            Enter this code on the signup page to access your account
+            Enter this code on the login page to access your account
           </div>
         </div>
 
-        <div class="instructions">
-          <h3>Important Security Notes:</h3>
-          <ul>
-            <li>This code is confidential - never share it with anyone</li>
-            <li>WorkHive staff will never ask for your verification code</li>
-            <li>If you didn't request this code, please ignore this email</li>
-            <li>The code will expire automatically after 10 minutes</li>
-          </ul>
+        <div class="expiry-info">
+          <strong>⏰ Important:</strong>
+          This code will expire in 10 minutes for your security.
+        </div>
+
+        <div class="security-notice">
+          <strong>🛡️ Security Reminder:</strong><br />
+          • Never share this code with anyone<br />
+          • WorkHive will never ask for your verification code via phone or
+          email<br />
+          • If you didn't request this code, please ignore this email or contact
+          support
         </div>
       </div>
 
       <div class="footer">
         <div class="divider"></div>
         <p>
-          Having trouble? Contact our <a href="#">Support Team</a> for
-          assistance.
+          Having trouble? Contact our
+          <a href="#">Support Team</a> for assistance.
         </p>
         <p style="margin-top: 10px; font-size: 12px; color: #94a3b8">
           © 2025 WorkHive. All rights reserved.

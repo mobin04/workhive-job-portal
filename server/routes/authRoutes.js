@@ -7,10 +7,13 @@ const router = express.Router();
 
 // Signup
 router.post('/request-signup-otp', authController.requestSignUpOtp);
-router.post('/verify-signup-otp', authController.verifyOptAndRegister);
 
 // Login
-router.post('/login', authController.loginUser);
+router.post('/request-login-otp', authController.requestLoginOtp);
+
+// Verify OTP
+router.post('/verify-otp', authController.verifyOtpAndGetToken);
+
 
 //Logout
 router.post('/logout', authController.logout);

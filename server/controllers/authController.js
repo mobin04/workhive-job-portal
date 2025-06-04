@@ -2,7 +2,6 @@
 const UAParser = require('ua-parser-js'); // Get Device Info.
 const speakeasy = require('speakeasy'); // For OTP verficaion.
 const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
 const { createSendToken } = require('../middlewares/authMiddleware');
 const User = require('../models/userModel');
 const AppError = require('../utils/appError');
@@ -29,6 +28,36 @@ async function getPublicIP() {
   return data.ip;
 }
 
+// Generate OTP and Secret Key
+function generateOTP() {
+  const otpSecret = speakeasy.generateSecret({ length: 20 }).base32;
+  const otpToken = speakeasy.totp({
+    secret: otpSecret,
+    encoding: 'base32',
+    step: 60,
+  });
+
+  return { otpSecret, otpToken };
+}
+
+// Get Logged In User Info
+async function getLoggedInUserInfo(req) {
+  const parser = new UAParser();
+  const ip = await getPublicIP();
+  const location = await getGeoLocation(ip);
+  const deviceInfo = parser.setUA(req.headers['user-agent']).getResult();
+
+  const loginDetails = {
+    location,
+    device: {
+      browser: deviceInfo.browser.name,
+      // os: deviceInfo.os.name,
+      type: deviceInfo.device.type || 'Desktop',
+    },
+  };
+  return loginDetails;
+}
+
 // Request OTP for verification
 exports.requestSignUpOtp = catchAsync(async (req, res, next) => {
   const existingUser = await User.findOne({ email: req.body.email });
@@ -46,67 +75,17 @@ exports.requestSignUpOtp = catchAsync(async (req, res, next) => {
     role: req.body.role,
   };
 
-  // Generate a base32 string.
-  const otpSecret = speakeasy.generateSecret({ length: 20 }).base32;
+  const { otpSecret, otpToken } = generateOTP();
 
-  // Generate OTP
-  const otpToken = speakeasy.totp({
-    secret: otpSecret,
-    encoding: 'base32',
-    step: 60,
-  });
   user.otpSecret = otpSecret;
-  
+
   await new Email(user, '', { otpSecret: otpToken }).sendOtpEmail();
 
   createSendToken(user, 201, req, res, 'signup');
 });
 
-
-// Verifify OTP and create Account.
-exports.verifyOptAndRegister = catchAsync(async (req, res, next) => {
-  const { otp } = req.body;
-  let token;
-
-  if (
-    req.headers.authorization &&
-    req.headers.authorization.startsWith('Bearer')
-  ) {
-    token = req.headers.authorization.split(' ')[1];
-  } else if (req.cookies.jwt) {
-    token = req.cookies.jwt;
-  }
-
-  if (!token) {
-    return next(new AppError('Unauthorized request! :(', 401));
-  }
-
-  const decoded = jwt.verify(token, process.env.JWT_SECRET);
-  const { email, name, password, role, otpSecret } = decoded;
-
-  const verify = speakeasy.totp.verify({
-    secret: otpSecret,
-    encoding: 'base32',
-    token: otp,
-    step: 60,
-    window: 2,
-  });
-
-  if (!verify) {
-    return next(new AppError('Invalid or Expired OTP', 403));
-  }
-
-  const newUser = await User.create({ name, email, password, role });
-
-  // Sent Email
-  await new Email(newUser, '', '').sendWelcome();
-
-  createSendToken(newUser, 201, req, res, 'login');
-});
-
 // /login
-exports.loginUser = catchAsync(async (req, res, next) => {
-  const parser = new UAParser();
+exports.requestLoginOtp = catchAsync(async (req, res, next) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
@@ -125,24 +104,76 @@ exports.loginUser = catchAsync(async (req, res, next) => {
     return next(new AppError('Incorrect email or password!', 401));
   }
 
-  // For Email Notification.
-  const ip = await getPublicIP();
-  const location = await getGeoLocation(ip);
-  const deviceInfo = parser.setUA(req.headers['user-agent']).getResult();
+  const { otpSecret, otpToken } = generateOTP();
 
-  const loginDetails = {
-    location,
-    device: {
-      browser: deviceInfo.browser.name,
-      // os: deviceInfo.os.name,
-      type: deviceInfo.device.type || 'Desktop',
-    },
-  };
+  existingUser.otpSecret = otpSecret;
+  await existingUser.save();
 
-  // Sent email
-  await new Email(existingUser, '', { loginDetails }).sendLoginEmail();
+  await new Email(existingUser, '', {
+    otpSecret: otpToken,
+  }).sendLoginOtpEmail();
 
   createSendToken(existingUser, 200, req, res, 'login');
+});
+
+// Verifify OTP and create Account.
+exports.verifyOtpAndGetToken = catchAsync(async (req, res, next) => {
+  const { otp, mode } = req.body;
+  let otpSecret;
+  let token;
+
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith('Bearer')
+  ) {
+    token = req.headers.authorization.split(' ')[1];
+  } else if (req.cookies.jwt) {
+    token = req.cookies.jwt;
+  }
+
+  if (!token) {
+    return next(new AppError('Unauthorized request! :(', 401));
+  }
+
+  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  let userId;
+  let loggingUser;
+
+  if (mode === 'signup') {
+    otpSecret = decoded.otpSecret;
+  } else if (mode === 'login') {
+    userId = decoded.userId;
+    loggingUser = await User.findById(userId);
+    otpSecret = loggingUser.otpSecret;
+  }
+
+  const verify = speakeasy.totp.verify({
+    secret: otpSecret,
+    encoding: 'base32',
+    token: otp,
+    step: 60,
+    window: 2,
+  });
+
+  if (!verify) {
+    return next(new AppError('Invalid or Expired OTP', 403));
+  }
+
+  if (mode === 'signup') {
+    const { name, email, password, role } = decoded;
+    const user = await User.create({ name, email, password, role });
+    await new Email(user, '', '').sendWelcome();
+    return createSendToken(user, 201, req, res, 'getRealToken');
+  }
+
+  loggingUser.otpSecret = undefined;
+  await loggingUser.save();
+
+  const loggedUserInfo = await getLoggedInUserInfo(req);
+
+  await new Email(loggingUser, '', { loggedUserInfo }).sendLoginEmail();
+
+  createSendToken(loggingUser, 201, req, res, 'getRealToken');
 });
 
 // /logout

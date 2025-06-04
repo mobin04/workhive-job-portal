@@ -9,7 +9,7 @@ class Email {
     this.url = url;
     this.from = `${process.env.EMAIL_FROM_ME}`;
     this.user = user;
-    this.loginDetails = others.loginDetails;
+    this.loginDetails = others.loggedUserInfo;
     this.otpSecret = others.otpSecret;
   }
 
@@ -82,12 +82,20 @@ class Email {
       coverImage: this.user.coverImage,
     });
   }
-  
+
   async sendOtpEmail() {
-    await this.sendEmail('Verification code', 'otpEmailTemplate', {
+    await this.sendEmail('Verification code for signup', 'otpEmailTemplate', {
       otpCode: this.otpSecret,
-      userName: this.user.name
-    })
+      userName: this.user.name,
+    });
+  }
+
+  async sendLoginOtpEmail() {
+    await this.sendEmail('Verification code for login', 'otpLoginEmail', {
+      userName: this.user.name,
+      otpCode: this.otpSecret,
+      coverImageUrl: this.user.coverImage,
+    });
   }
 }
 

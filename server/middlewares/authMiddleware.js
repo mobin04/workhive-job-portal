@@ -7,18 +7,21 @@ const AppError = require('../utils/appError');
 // Create jwt token
 const signToken = (user, authType) => {
   let payload;
+  let jwtExpires;
 
   if (authType === 'signup') {
     payload = user;
+    jwtExpires = process.env.JWT_SIGNUP_EXPIRE;
   } else if (authType === 'login') {
-    payload = {id: user.id};
+    payload = { userId: user.id };
+    jwtExpires = process.env.JWT_LOGIN_EXPIRE;
+  } else if(authType === 'getRealToken'){
+    payload = { id: user.id };
+    jwtExpires = process.env.JWT_EXPIRES_IN;
   }
 
-  return jwt.sign( payload , process.env.JWT_SECRET, {
-    expiresIn:
-      authType === 'signup'
-        ? process.env.JWT_SIGNUP_EXPIRE
-        : process.env.JWT_EXPIRES_IN,
+  return jwt.sign(payload, process.env.JWT_SECRET, {
+    expiresIn: jwtExpires,
   });
 };
 
@@ -37,11 +40,13 @@ exports.createSendToken = (user, statusCode, req, res, authType) => {
 
   // Remove the password from output.
   user.password = undefined;
+  user.otpSecret = undefined;
 
   // Send Response
   res.status(statusCode).json({
     status: 'success',
     token,
+    message: ['signup', 'login'].includes(authType) ? 'OTP successfully sent!': '',
     data: {
       user,
     },
