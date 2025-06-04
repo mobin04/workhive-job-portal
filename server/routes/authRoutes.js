@@ -5,13 +5,14 @@ const upload = require('../config/multerConfig');
 
 const router = express.Router();
 
-// Login & register
-router.post(
-  '/register',
-  upload.single('coverImage'),
-  authController.registerUser
-);
+// Signup
+router.post('/request-signup-otp', authController.requestSignUpOtp);
+router.post('/verify-signup-otp', authController.verifyOptAndRegister);
+
+// Login
 router.post('/login', authController.loginUser);
+
+//Logout
 router.post('/logout', authController.logout);
 router
   .route('/profile')

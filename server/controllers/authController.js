@@ -1,5 +1,8 @@
 // const fetch = require('node-fetch');
-const UAParser = require('ua-parser-js'); // Get Device Info
+const UAParser = require('ua-parser-js'); // Get Device Info.
+const speakeasy = require('speakeasy'); // For OTP verficaion.
+const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { createSendToken } = require('../middlewares/authMiddleware');
 const User = require('../models/userModel');
 const AppError = require('../utils/appError');
@@ -19,14 +22,15 @@ async function getGeoLocation(ip) {
     : 'Unknown';
 }
 
+// Get IP Address
 async function getPublicIP() {
   const response = await fetch('https://api64.ipify.org?format=json');
   const data = await response.json();
-  return data.ip; // ✅ Returns your real public IP
+  return data.ip;
 }
 
-// /register
-exports.registerUser = catchAsync(async (req, res, next) => {
+// Request OTP for verification
+exports.requestSignUpOtp = catchAsync(async (req, res, next) => {
   const existingUser = await User.findOne({ email: req.body.email });
 
   if (existingUser) {
@@ -35,25 +39,69 @@ exports.registerUser = catchAsync(async (req, res, next) => {
     );
   }
 
-  const newUser = await User.create({
+  const user = {
     name: req.body.name,
     email: req.body.email,
     password: req.body.password,
     role: req.body.role,
+  };
+
+  // Generate a base32 string.
+  const otpSecret = speakeasy.generateSecret({ length: 20 }).base32;
+
+  // Generate OTP
+  const otpToken = speakeasy.totp({
+    secret: otpSecret,
+    encoding: 'base32',
+    step: 60,
+  });
+  user.otpSecret = otpSecret;
+  
+  await new Email(user, '', { otpSecret: otpToken }).sendOtpEmail();
+
+  createSendToken(user, 201, req, res, 'signup');
+});
+
+
+// Verifify OTP and create Account.
+exports.verifyOptAndRegister = catchAsync(async (req, res, next) => {
+  const { otp } = req.body;
+  let token;
+
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith('Bearer')
+  ) {
+    token = req.headers.authorization.split(' ')[1];
+  } else if (req.cookies.jwt) {
+    token = req.cookies.jwt;
+  }
+
+  if (!token) {
+    return next(new AppError('Unauthorized request! :(', 401));
+  }
+
+  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  const { email, name, password, role, otpSecret } = decoded;
+
+  const verify = speakeasy.totp.verify({
+    secret: otpSecret,
+    encoding: 'base32',
+    token: otp,
+    step: 60,
+    window: 2,
   });
 
-  const coverImageUrl = await handleFileUpload.uploadImage(
-    req.file,
-    'coverImage',
-    newUser.id
-  );
+  if (!verify) {
+    return next(new AppError('Invalid or Expired OTP', 403));
+  }
 
-  newUser.coverImage = coverImageUrl;
-  await newUser.save();
+  const newUser = await User.create({ name, email, password, role });
 
-  await new Email(newUser, '').sendWelcome();
+  // Sent Email
+  await new Email(newUser, '', '').sendWelcome();
 
-  createSendToken(newUser, 201, req, res);
+  createSendToken(newUser, 201, req, res, 'login');
 });
 
 // /login
@@ -83,7 +131,6 @@ exports.loginUser = catchAsync(async (req, res, next) => {
   const deviceInfo = parser.setUA(req.headers['user-agent']).getResult();
 
   const loginDetails = {
-    // time: new Date.toLocaleString(),
     location,
     device: {
       browser: deviceInfo.browser.name,
@@ -93,9 +140,9 @@ exports.loginUser = catchAsync(async (req, res, next) => {
   };
 
   // Sent email
-  await new Email(existingUser, '', {loginDetails}).sendLoginEmail();
-  
-  createSendToken(existingUser, 200, req, res);
+  await new Email(existingUser, '', { loginDetails }).sendLoginEmail();
+
+  createSendToken(existingUser, 200, req, res, 'login');
 });
 
 // /logout
@@ -130,10 +177,11 @@ exports.updateProfile = catchAsync(async (req, res, next) => {
   const filteredProperty = filteredObject(req.body, 'name', 'email');
 
   if (req.file) {
-    // Delete old image
+    // Delete old Coverimage
     await handleFileUpload.deleteImage('coverImage', req.user.id);
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
+    // Upload new Coverimage
     filteredProperty.coverImage = await handleFileUpload.uploadImage(
       req.file,
       'coverImage',

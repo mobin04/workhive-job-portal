@@ -2,7 +2,6 @@ const bucket = require('../config/firebaseConfig');
 const compressImage = require('../config/imageProcessor');
 
 exports.uploadImage = async (file, type, userId) => {
-  console.log(type);
   let coverImageUrl =
     'https://www.shutterstock.com/image-vector/default-avatar-profile-icon-social-600nw-1677509740.jpg';
 
@@ -17,12 +16,24 @@ exports.uploadImage = async (file, type, userId) => {
 
     await fileUpload.makePublic();
 
-    coverImageUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}?t=${Date.now()}}`;
+      // coverImageUrl = `https://storage.googleapis.com/${bucketName}/${fileName}?t=${Date.now()}`;
+    coverImageUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}?t=${Date.now()}`;
   }
   return coverImageUrl;
 };
 
 exports.deleteImage = async (type, userId) => {
-  const oldFile = bucket.file(`${type}/${userId}.webp`)
-  await oldFile.delete()
+  const filePath = `${type}/${userId}.webp`;
+  const file = bucket.file(filePath);
+
+  try {
+    const [exists] = await file.exists();
+    
+    if (exists) {
+      await file.delete();
+    } 
+    
+  } catch (err) {
+    console.error('Error deleting image:', err.message);
+  }
 };

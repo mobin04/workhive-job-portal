@@ -5,15 +5,26 @@ const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 
 // Create jwt token
-const signToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN,
+const signToken = (user, authType) => {
+  let payload;
+
+  if (authType === 'signup') {
+    payload = user;
+  } else if (authType === 'login') {
+    payload = {id: user.id};
+  }
+
+  return jwt.sign( payload , process.env.JWT_SECRET, {
+    expiresIn:
+      authType === 'signup'
+        ? process.env.JWT_SIGNUP_EXPIRE
+        : process.env.JWT_EXPIRES_IN,
   });
 };
 
 // Send jwt token
-exports.createSendToken = (user, statusCode, req, res) => {
-  const token = signToken(user.id);
+exports.createSendToken = (user, statusCode, req, res, authType) => {
+  const token = signToken(user, authType);
 
   // Cookie option
   res.cookie('jwt', token, {

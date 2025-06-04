@@ -10,6 +10,7 @@ class Email {
     this.from = `${process.env.EMAIL_FROM_ME}`;
     this.user = user;
     this.loginDetails = others.loginDetails;
+    this.otpSecret = others.otpSecret;
   }
 
   newTransporter() {
@@ -54,8 +55,6 @@ class Email {
         html: template,
       };
 
-      console.log(mailOptions.from, mailOptions.to);
-
       const info = await this.newTransporter().sendMail(mailOptions);
       return info;
     } catch (error) {
@@ -82,6 +81,13 @@ class Email {
       device: `${this.loginDetails.device.browser}, ${this.loginDetails.device.type}`,
       coverImage: this.user.coverImage,
     });
+  }
+  
+  async sendOtpEmail() {
+    await this.sendEmail('Verification code', 'otpEmailTemplate', {
+      otpCode: this.otpSecret,
+      userName: this.user.name
+    })
   }
 }
 
