@@ -40,6 +40,19 @@ function generateOTP() {
   return { otpSecret, otpToken };
 }
 
+// OTP Verification.
+function otpVerification(otp, otpSecret) {
+  const verify = speakeasy.totp.verify({
+    secret: otpSecret,
+    encoding: 'base32',
+    token: otp,
+    step: 60,
+    window: 2,
+  });
+
+  return verify;
+}
+
 // Get Logged In User Info
 async function getLoggedInUserInfo(req) {
   const parser = new UAParser();
@@ -78,6 +91,7 @@ exports.requestSignUpOtp = catchAsync(async (req, res, next) => {
   const { otpSecret, otpToken } = generateOTP();
 
   user.otpSecret = otpSecret;
+  user.authType = 'signup';
 
   await new Email(user, '', { otpSecret: otpToken }).sendOtpEmail();
 
@@ -106,19 +120,27 @@ exports.requestLoginOtp = catchAsync(async (req, res, next) => {
 
   const { otpSecret, otpToken } = generateOTP();
 
-  existingUser.otpSecret = otpSecret;
-  await existingUser.save();
-
   await new Email(existingUser, '', {
     otpSecret: otpToken,
   }).sendLoginOtpEmail();
 
+  existingUser.otpSecret = otpSecret;
   createSendToken(existingUser, 200, req, res, 'login');
 });
 
 // Verifify OTP and create Account.
 exports.verifyOtpAndGetToken = catchAsync(async (req, res, next) => {
   const { otp, mode } = req.body;
+
+  if (!['login', 'signup'].includes(mode)) {
+    return next(
+      new AppError(
+        'Please select your correct mode either signup or login',
+        400
+      )
+    );
+  }
+
   let otpSecret;
   let token;
 
@@ -135,45 +157,56 @@ exports.verifyOtpAndGetToken = catchAsync(async (req, res, next) => {
     return next(new AppError('Unauthorized request! :(', 401));
   }
 
-  const decoded = jwt.verify(token, process.env.JWT_SECRET);
-  let userId;
-  let loggingUser;
+  let decoded;
 
-  if (mode === 'signup') {
-    otpSecret = decoded.otpSecret;
-  } else if (mode === 'login') {
-    userId = decoded.userId;
-    loggingUser = await User.findById(userId);
-    otpSecret = loggingUser.otpSecret;
+  try {
+    decoded = jwt.verify(token, process.env.JWT_SECRET);
+  } catch (error) {
+    return next(new AppError('Token expired! Request a new OTP.', 403));
   }
 
-  const verify = speakeasy.totp.verify({
-    secret: otpSecret,
-    encoding: 'base32',
-    token: otp,
-    step: 60,
-    window: 2,
-  });
+  otpSecret = decoded.otpSecret;
+
+  const verify = otpVerification(otp, otpSecret);
+
+  console.log(otp, otpSecret);
 
   if (!verify) {
     return next(new AppError('Invalid or Expired OTP', 403));
   }
 
   if (mode === 'signup') {
+    if (decoded.authType !== 'signup') {
+      return next(
+        new AppError(
+          'You are trying to login! Please select mode to <login>',
+          400
+        )
+      );
+    }
     const { name, email, password, role } = decoded;
     const user = await User.create({ name, email, password, role });
     await new Email(user, '', '').sendWelcome();
     return createSendToken(user, 201, req, res, 'getRealToken');
   }
 
-  loggingUser.otpSecret = undefined;
-  await loggingUser.save();
+  if (mode === 'login') {
+    if (decoded.authType !== 'login') {
+      return next(
+        new AppError(
+          'You are trying to signup! Please select mode to <signup>',
+          400
+        )
+      );
+    }
+    const logginUserId = decoded.userId;
+    const loggingUser = await User.findById(logginUserId);
 
-  const loggedUserInfo = await getLoggedInUserInfo(req);
+    const loggedUserInfo = await getLoggedInUserInfo(req);
+    await new Email(loggingUser, '', { loggedUserInfo }).sendLoginEmail();
 
-  await new Email(loggingUser, '', { loggedUserInfo }).sendLoginEmail();
-
-  createSendToken(loggingUser, 201, req, res, 'getRealToken');
+    return createSendToken(loggingUser, 201, req, res, 'getRealToken');
+  }
 });
 
 // /logout

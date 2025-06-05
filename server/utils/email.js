@@ -5,7 +5,7 @@ const fs = require('fs');
 class Email {
   constructor(user, url, { ...others }) {
     this.to = user.email;
-    this.firstName = user.name.split(' ')[0];
+    this.firstName = user.name.split(' ')[0].toUpperCase();
     this.url = url;
     this.from = `${process.env.EMAIL_FROM_ME}`;
     this.user = user;
@@ -58,7 +58,6 @@ class Email {
       const info = await this.newTransporter().sendMail(mailOptions);
       return info;
     } catch (error) {
-      // console.error('Email sending failed:', error);
       throw new Error('Failed to send email.');
     }
   }
@@ -86,13 +85,13 @@ class Email {
   async sendOtpEmail() {
     await this.sendEmail('Verification code for signup', 'otpEmailTemplate', {
       otpCode: this.otpSecret,
-      userName: this.user.name,
+      userName: this.firstName,
     });
   }
 
   async sendLoginOtpEmail() {
     await this.sendEmail('Verification code for login', 'otpLoginEmail', {
-      userName: this.user.name,
+      userName: this.firstName,
       otpCode: this.otpSecret,
       coverImageUrl: this.user.coverImage,
     });

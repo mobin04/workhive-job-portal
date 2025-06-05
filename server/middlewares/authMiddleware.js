@@ -13,9 +13,9 @@ const signToken = (user, authType) => {
     payload = user;
     jwtExpires = process.env.JWT_SIGNUP_EXPIRE;
   } else if (authType === 'login') {
-    payload = { userId: user.id };
+    payload = { userId: user.id, otpSecret: user.otpSecret, authType };
     jwtExpires = process.env.JWT_LOGIN_EXPIRE;
-  } else if(authType === 'getRealToken'){
+  } else if (authType === 'getRealToken') {
     payload = { id: user.id };
     jwtExpires = process.env.JWT_EXPIRES_IN;
   }
@@ -29,11 +29,19 @@ const signToken = (user, authType) => {
 exports.createSendToken = (user, statusCode, req, res, authType) => {
   const token = signToken(user, authType);
 
+  // 60 days
+  let expire = new Date(
+    Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000
+  );
+
+  // 10 minutes
+  if (['signup', 'login'].includes(authType)) {
+    expire = new Date(Date.now() + 10 * 60 * 1000);
+  }
+
   // Cookie option
   res.cookie('jwt', token, {
-    expires: new Date(
-      Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000
-    ),
+    expires: expire,
     httpOnly: true,
     secure: req.secure || req.headers['x-forwarded-proto'] === 'https',
   });
@@ -46,7 +54,9 @@ exports.createSendToken = (user, statusCode, req, res, authType) => {
   res.status(statusCode).json({
     status: 'success',
     token,
-    message: ['signup', 'login'].includes(authType) ? 'OTP successfully sent!': '',
+    message: ['signup', 'login'].includes(authType)
+      ? 'OTP successfully sent!'
+      : '',
     data: {
       user,
     },
@@ -71,6 +81,12 @@ exports.protect = catchAsync(async (req, res, next) => {
     );
 
   const decode = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
+
+  if (['signup', 'login'].includes(decode.authType)) {
+    return next(
+      new AppError('Please verify your account then try again!', 401)
+    );
+  }
 
   const currentUser = await User.findById(decode.id);
 
