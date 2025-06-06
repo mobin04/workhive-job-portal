@@ -4,6 +4,7 @@ const Job = require('../models/jobModel');
 const Application = require('../models/applicationModel');
 const handleFileUpload = require('../utils/fileUploads');
 const APIFeatures = require('../utils/apiFeatures');
+const Email = require('../utils/email');
 
 // Create new application
 exports.applyJob = catchAsync(async (req, res, next) => {
@@ -26,9 +27,7 @@ exports.applyJob = catchAsync(async (req, res, next) => {
   }
 
   if (!req.file) {
-    return next(
-      new AppError('Resume is required!, Please upload your resume :)', 400)
-    );
+    return next(new AppError('Resume is required!, Please upload your resume :)', 400));
   }
 
   const application = await Application.create({
@@ -38,17 +37,11 @@ exports.applyJob = catchAsync(async (req, res, next) => {
   });
 
   try {
-    resumeUrl = await handleFileUpload.uploadImage(
-      req.file,
-      'resume',
-      application.id
-    );
+    resumeUrl = await handleFileUpload.uploadImage(req.file, 'resume', application.id);
     application.resumeUrl = resumeUrl;
     await application.save();
   } catch (err) {
-    return next(
-      new AppError('Resume upload failed!, Please try again :(', 500)
-    );
+    return next(new AppError(err.message || 'Resume upload failed!, Please try again :(', 500));
   }
 
   await Job.findByIdAndUpdate(job, {
@@ -69,9 +62,7 @@ exports.getApplicationByApplicantId = catchAsync(async (req, res, next) => {
   const { id } = req.params; // <= APPLICANT ID
 
   if (req.user.id !== id && !['employer', 'admin'].includes(req.user.role)) {
-    return next(
-      new AppError('You are not allowed to view this application', 403)
-    );
+    return next(new AppError('You are not allowed to view this application', 403));
   }
 
   const application = await Application.find({ applicant: id })
@@ -113,15 +104,9 @@ exports.getApplicationByJobId = catchAsync(async (req, res, next) => {
 
   const job = await Job.findOne({ _id: id });
 
-  if (
-    job.employer.toString() !== req.user.id &&
-    !['admin'].includes(req.user.role)
-  ) {
+  if (job.employer.toString() !== req.user.id && !['admin'].includes(req.user.role)) {
     return next(
-      new AppError(
-        'You are not allowed to view the applications belong to that job ID',
-        403
-      )
+      new AppError('You are not allowed to view the applications belong to that job ID', 403),
     );
   }
 
@@ -157,9 +142,7 @@ exports.getApplicationByJobId = catchAsync(async (req, res, next) => {
     message: 'Application fetched successfully!',
     totalApplication: application.length,
     currentPage: parseInt(req.query.page) || 1,
-    totalPages: Math.ceil(
-      applicationCount / (apiFeatures.pagination.limit || 10)
-    ),
+    totalPages: Math.ceil(applicationCount / (apiFeatures.pagination.limit || 10)),
     data: {
       application,
     },
@@ -175,22 +158,24 @@ exports.updateApplicationStatus = catchAsync(async (req, res, next) => {
     return next(new AppError('Status must be accepted or rejected', 400));
   }
 
-  if (!isCurrentUserApplication) {
-    return next(new AppError('No application Found!', 404));
-  }
-
   const application = await Application.findByIdAndUpdate(
     id,
     { status },
     {
       new: true,
       runValidators: true,
-    }
-  );
+    },
+  )
+    .populate('applicant')
+    .populate('job', 'title company');
 
   if (!application) {
     return next(new AppError('No application found with that id :(', 404));
   }
+
+  const applicant = application.applicant;
+
+  await new Email(applicant, '', { application }).sendApplicationStatusUpdate();
 
   res.status(201).json({
     status: 'success',
@@ -215,9 +200,7 @@ exports.withdrawApplication = catchAsync(async (req, res, next) => {
   }
 
   if (application.status !== 'pending') {
-    return next(
-      new AppError('You can only withdraw the pending applications', 400)
-    );
+    return next(new AppError('You can only withdraw the pending applications', 400));
   }
 
   if (application.activeStatus === 'withdrawn') {
@@ -235,15 +218,15 @@ exports.withdrawApplication = catchAsync(async (req, res, next) => {
 
   res.status(200).json({
     status: 'success',
-    message:
-      'Application withdrawn successfully! It will be auto-deleted after 30 days.',
+    message: 'Application withdrawn successfully! It will be auto-deleted after 30 days.',
     data: {
       application,
     },
   });
 });
 
-// Get withdrawn application.
+// Get withdrawn application. (for admin only)
+// eslint-disable-next-line no-unused-vars
 exports.getWithdrawnApplication = async (req, res, next) => {
   const apiFeatures = new APIFeatures(req.query).paginate().sort();
 
@@ -256,8 +239,8 @@ exports.getWithdrawnApplication = async (req, res, next) => {
       select: 'company title location',
       populate: {
         path: 'employer',
-        select: 'name email coverImage'
-      }
+        select: 'name email coverImage',
+      },
     })
     .populate('applicant', 'name email coverImage')
     .sort(apiFeatures.sorting)
@@ -282,9 +265,7 @@ exports.getWithdrawnApplication = async (req, res, next) => {
     message: 'Application fetched successfully!',
     totalApplication: application.length,
     currentPage: parseInt(req.query.page) || 1,
-    totalPages: Math.ceil(
-      applicationCount / (apiFeatures.pagination.limit || 10)
-    ),
+    totalPages: Math.ceil(applicationCount / (apiFeatures.pagination.limit || 10)),
     data: {
       application,
     },

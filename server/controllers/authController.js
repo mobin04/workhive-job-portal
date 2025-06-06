@@ -169,8 +169,6 @@ exports.verifyOtpAndGetToken = catchAsync(async (req, res, next) => {
 
   const verify = otpVerification(otp, otpSecret);
 
-  console.log(otp, otpSecret);
-
   if (!verify) {
     return next(new AppError('Invalid or Expired OTP', 403));
   }
