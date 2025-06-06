@@ -3,6 +3,24 @@ const APIFeatures = require('../utils/apiFeatures');
 const AppError = require('../utils/appError');
 const catchAsync = require('../utils/catchAsync');
 const filteredObject = require('../utils/filteredObject');
+const handleFileUpload = require('../utils/fileUploads');
+
+const uploadCompanyLogo = async (file, jobId, next) => {
+  try {
+    const companyLogoUrl = await handleFileUpload.uploadImage(file, 'companyLogo', jobId);
+    return companyLogoUrl;
+  } catch (err) {
+    return next(
+      new AppError(
+        `${
+          err.message ||
+          'Something went wrong while uploading company logo, Please try updating your company logo again!'
+        }`,
+        500,
+      ),
+    );
+  }
+};
 
 // Get all jobs
 exports.getAllJobs = catchAsync(async (req, res, next) => {
@@ -36,8 +54,12 @@ exports.createNewJob = catchAsync(async (req, res, next) => {
     'description',
     'company',
     'location',
-    'salary',
-    'category'
+    'salaryMinPerMonth',
+    'salaryMaxPerMonth',
+    'jobType',
+    'geoLocation',
+    'jobLevel',
+    'category',
   );
 
   const newJob = await Job.create({
@@ -45,8 +67,10 @@ exports.createNewJob = catchAsync(async (req, res, next) => {
     employer: req.user.id,
   });
 
-  if (!newJob) {
-    return next(new AppError('Something went wrong', 500));
+  if (req.file) {
+    const companyLogoUrl = await uploadCompanyLogo(req.file, newJob.id, next);
+    newJob.companyLogo = companyLogoUrl;
+    await newJob.save();
   }
 
   res.status(201).json({
@@ -87,10 +111,7 @@ exports.updateJob = catchAsync(async (req, res, next) => {
     return next(new AppError('No job found with that id', 404));
   }
 
-  if (
-    isJobExist.employer.toString() !== req.user.id &&
-    req.user.role !== 'admin'
-  ) {
+  if (isJobExist.employer.toString() !== req.user.id && req.user.role !== 'admin') {
     return next(new AppError('You are not allowed to update this job :)', 403));
   }
 
@@ -101,13 +122,23 @@ exports.updateJob = catchAsync(async (req, res, next) => {
     'description',
     'company',
     'location',
-    'salary', 
-    'category'
+    'jobType',
+    'jobLevel',
+    'geoLocation',
+    'salaryMinPerMonth',
+    'salaryMaxPerMonth',
+    'category',
   );
 
   // Check if user does't pass anything in the reqest body
   if (Object.keys(filteredProperty).length === 0) {
     return next(new AppError('No valid field provided for update', 400));
+  }
+
+  if (req.file) {
+    const companyLogoUrl = await uploadCompanyLogo(req.file, newJob.id, next);
+    newJob.companyLogo = companyLogoUrl;
+    await newJob.save();
   }
 
   const updatedJob = await Job.findByIdAndUpdate(jobId, filteredProperty, {
@@ -160,23 +191,22 @@ exports.renewJob = catchAsync(async (req, res, next) => {
     return next(new AppError('No job found with that ID!', 404));
   }
 
-  if (
-    job.employer._id.toString() !== req.user.id &&
-    !['admin'].includes(req.user.role)
-  ) {
-    return next(
-      new AppError('You dont have permission to renew this job!', 403)
-    );
+  if (job.employer._id.toString() !== req.user.id && !['admin'].includes(req.user.role)) {
+    return next(new AppError('You dont have permission to renew this job!', 403));
   }
 
   if (job.isRenewed) {
     return next(new AppError('You already renewed this job', 400));
   }
   await job.renewExpiration();
+  (job.status = 'open'), await job.save();
 
   res.status(201).json({
     status: 'success',
-    message: 'Job expiration extended by 30 days!',
+    message: 'Job expiration extended by 30 days! and the job status remains open',
+    data: {
+      renewedJob: job,
+    },
   });
 });
 
@@ -190,10 +220,7 @@ exports.closeJob = catchAsync(async (req, res, next) => {
     return next(new AppError('No job found with that ID!', 404));
   }
 
-  if (
-    job.employer._id.toString() !== req.user.id &&
-    req.user.role !== 'admin'
-  ) {
+  if (job.employer._id.toString() !== req.user.id && req.user.role !== 'admin') {
     return next(new AppError('You are not allowed to close this job', 403));
   }
 

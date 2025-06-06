@@ -3,6 +3,7 @@ const jobController = require('../controllers/jobController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const isValidObjectId = require('../middlewares/isValidObjectId');
 const applicationController = require('../controllers/applicationController');
+const upload = require('../config/multerConfig');
 
 const router = express.Router();
 
@@ -12,8 +13,10 @@ router
   .post(
     authMiddleware.protect,
     authMiddleware.restrictTo('employer'),
+    upload.single('companyLogo'),
     jobController.createNewJob
   );
+
 router
   .route('/:id')
   .get(authMiddleware.protect, isValidObjectId, jobController.getSingleJob)

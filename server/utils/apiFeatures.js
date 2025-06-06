@@ -28,8 +28,12 @@ class APIFeatures {
     const filters = { ...this.query };
     excludedFields.forEach((field) => delete filters[field]);
 
-    if (filters.salary) {
-      filters.salary = { $gte: parseInt(filters.salary) };
+    if (filters.salaryMinPerMonth) {
+      filters.salaryMinPerMonth = { $gte: parseInt(filters.salaryMinPerMonth) };
+    }
+
+    if (filters.salaryMaxPerMonth) {
+      filters.salaryMaxPerMonth = { $lte: parseInt(filters.salaryMaxPerMonth) };
     }
 
     const finalFilter = { ...filters };
