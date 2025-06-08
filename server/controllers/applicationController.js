@@ -48,6 +48,14 @@ exports.applyJob = catchAsync(async (req, res, next) => {
     $addToSet: { applications: application._id },
   });
 
+  const applicationInfo = await (
+    await application.populate('applicant', 'name email')
+  ).populate('job', 'title company companyLogo');
+
+  await new Email(applicationInfo.applicant, '', {
+    application: applicationInfo,
+  }).sendApplicationStatusUpdate();
+
   res.status(201).json({
     status: 'success',
     message: 'Application successfully created',

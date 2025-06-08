@@ -14,7 +14,7 @@ router
     authMiddleware.protect,
     authMiddleware.restrictTo('employer'),
     upload.single('companyLogo'),
-    jobController.createNewJob
+    jobController.createNewJob,
   );
 
 router
@@ -24,13 +24,13 @@ router
     authMiddleware.protect,
     authMiddleware.restrictTo('admin', 'employer'),
     isValidObjectId,
-    jobController.updateJob
+    jobController.updateJob,
   )
   .delete(
     authMiddleware.protect,
     authMiddleware.restrictTo('admin', 'employer'),
     isValidObjectId,
-    jobController.deleteJob
+    jobController.deleteJob,
   );
 
 router.patch(
@@ -38,7 +38,7 @@ router.patch(
   authMiddleware.protect,
   authMiddleware.restrictTo('employer', 'admin'),
   isValidObjectId,
-  jobController.renewJob
+  jobController.renewJob,
 );
 
 router.patch(
@@ -46,7 +46,7 @@ router.patch(
   authMiddleware.protect,
   authMiddleware.restrictTo('admin', 'employer'),
   isValidObjectId,
-  jobController.closeJob
+  jobController.closeJob,
 );
 
 router.get(
@@ -54,7 +54,7 @@ router.get(
   authMiddleware.protect,
   authMiddleware.restrictTo('employer', 'admin'),
   isValidObjectId,
-  applicationController.getApplicationByJobId
+  applicationController.getApplicationByJobId,
 );
 
 module.exports = router;
