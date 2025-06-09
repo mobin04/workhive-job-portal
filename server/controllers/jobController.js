@@ -22,6 +22,27 @@ const uploadCompanyLogo = async (file, jobId, next) => {
   }
 };
 
+const handleCoordinateFormat = (coordinates, next) => {
+  if (!Array.isArray(coordinates) || coordinates.length !== 2) {
+    return next(
+      new AppError('geoLocation coordinates must be an array with [longitude, latitude]', 400),
+    );
+  }
+
+  const [longitude, latitude] = coordinates.map((coord) => parseFloat(coord));
+
+  if (isNaN(longitude) || isNaN(latitude)) {
+    return next(new AppError('Invalid geoLocation coordinates format', 400));
+  }
+
+  // Ensure valid latitude (-90 to 90) and longitude (-180 to 180)
+  if (longitude < -180 || longitude > 180 || latitude < -90 || latitude > 90) {
+    return next(new AppError('Invalid geoLocation coordinates provided', 400));
+  }
+
+  return [longitude, latitude];
+};
+
 // Get all jobs
 exports.getAllJobs = catchAsync(async (req, res, next) => {
   const jobService = new APIFeatures(req.query).paginate().sort().filter();
@@ -61,6 +82,13 @@ exports.createNewJob = catchAsync(async (req, res, next) => {
     'jobLevel',
     'category',
   );
+
+  if (filteredProperty.geoLocation?.coordinates) {
+    filteredProperty.geoLocation.coordinates = handleCoordinateFormat(
+      filteredProperty.geoLocation.coordinates,
+      next,
+    );
+  }
 
   const newJob = await Job.create({
     ...filteredProperty,
@@ -128,7 +156,15 @@ exports.updateJob = catchAsync(async (req, res, next) => {
     'salaryMinPerMonth',
     'salaryMaxPerMonth',
     'category',
+    'companyLogo',
   );
+
+  if (filteredProperty.geoLocation?.coordinates) {
+    filteredProperty.geoLocation.coordinates = handleCoordinateFormat(
+      filteredProperty.geoLocation.coordinates,
+      next,
+    );
+  }
 
   // Check if user does't pass anything in the reqest body
   if (Object.keys(filteredProperty).length === 0) {
@@ -136,18 +172,17 @@ exports.updateJob = catchAsync(async (req, res, next) => {
   }
 
   if (req.file) {
-    const companyLogoUrl = await uploadCompanyLogo(req.file, newJob.id, next);
-    newJob.companyLogo = companyLogoUrl;
-    await newJob.save();
+    const companyLogoUrl = await uploadCompanyLogo(req.file, jobId, next);
+    filteredProperty.companyLogo = companyLogoUrl;
   }
 
-  const updatedJob = await Job.findByIdAndUpdate(jobId, filteredProperty, {
+  const updatedJob = await Job.findOneAndUpdate({ _id: jobId }, filteredProperty, {
     new: true,
     runValidators: true,
   });
 
   if (!updatedJob) {
-    return next(new AppError('Error while updating job'));
+    return next(new AppError('Failed to update job! Please check provided values.', 400));
   }
 
   res.status(200).json({

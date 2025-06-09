@@ -30,6 +30,7 @@ const jobSchema = new mongoose.Schema(
           values: ['Point'],
           message: ['geoLocation type must be <Point>!'],
         },
+        default: 'Point',
       },
       coordinates: {
         type: [Number],
@@ -54,8 +55,7 @@ const jobSchema = new mongoose.Schema(
         validator: function (val) {
           return val >= this.salaryMinPerMonth;
         },
-        message:
-          'Maximum salary must be greater than or equal to minimum salary!',
+        message: 'Maximum salary must be greater than or equal to minimum salary!',
       },
     },
     employer: {
@@ -77,23 +77,15 @@ const jobSchema = new mongoose.Schema(
       type: String,
       enum: {
         values: ['full_time', 'part_time', 'remote', 'internship', 'contract'],
-        message:
-          'A jobType must be <full_time, part_time, remote, internship or contract>',
+        message: 'A jobType must be <full_time, part_time, remote, internship or contract>',
       },
       required: [true, 'A Job must have a jobType'],
     },
     jobLevel: {
       type: String,
       enum: {
-        values: [
-          'entry_level',
-          'mid_level',
-          'senior_level',
-          'director',
-          'vp_or_above',
-        ],
-        message:
-          'Job level must be <entry_level, mid_level, senior_level, director, vp_or_above>',
+        values: ['entry_level', 'mid_level', 'senior_level', 'director', 'vp_or_above'],
+        message: 'Job level must be <entry_level, mid_level, senior_level, director, vp_or_above>',
       },
       required: true,
     },
@@ -114,12 +106,14 @@ const jobSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // Indexing for improve performance.
 jobSchema.index({ title: 'text', location: 'text', company: 'text' });
 jobSchema.index({ salaryMin: 1, salaryMax: -1 });
+
+jobSchema.index({ geoLocation: '2dsphere' }); // For geospatial querys
 
 jobSchema.pre('save', function (next) {
   if (this.isNew) {

@@ -1,4 +1,3 @@
-/* eslint-disable no-undef */
 const nodemailer = require('nodemailer');
 const path = require('path');
 const fs = require('fs');
@@ -16,7 +15,7 @@ class Email {
   }
 
   newTransporter() {
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === 'production') {
       return nodemailer.createTransport({
         host: process.env.MAIL_JET_HOST,
         port: process.env.MAIL_JET_PORT,

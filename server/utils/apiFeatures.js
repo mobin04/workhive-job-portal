@@ -36,6 +36,37 @@ class APIFeatures {
       filters.salaryMaxPerMonth = { $lte: parseInt(filters.salaryMaxPerMonth) };
     }
 
+    if (filters.category) {
+      console.log(filters.category);
+      filters.category = { $in: filters.category.split(',') }; // $in [ "Graphic", "Devs"]
+    }
+
+    if (filters.jobType) {
+      filters.jobType = { $in: filters.jobType.split(',') };
+    }
+
+    if (filters.jobLevel) {
+      filters.jobLevel = { $in: filters.jobLevel.split(',') };
+    }
+
+    if (filters.latitude && filters.longitude && filters.distance && filters.unit) {
+      const { latitude, longitude, distance, unit } = filters;
+
+      const radius = unit === 'mi' ? distance / 3963.2 : distance / 6378.1;
+
+      filters.geoLocation = {
+        $geoWithin: {
+          $centerSphere: [[parseFloat(longitude), parseFloat(latitude)], radius], // [longitude, latitude]
+        },
+      };
+
+      // Delete the row fields for seamless querying.
+      delete filters.latitude;
+      delete filters.longitude;
+      delete filters.distance;
+      delete filters.unit;
+    }
+
     const finalFilter = { ...filters };
 
     if (this.query.search) {

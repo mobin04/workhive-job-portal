@@ -11,7 +11,6 @@ const adminRoutes = require('./routes/adminRoutes');
 const employerRoutes = require('./routes/employerRoutes');
 const statisticsRoutes = require('./routes/statisticsRoutes');
 
-
 dotEnv.config();
 connectDB();
 const app = express();
