@@ -5,6 +5,7 @@ const Application = require('../models/applicationModel');
 const handleFileUpload = require('../utils/fileUploads');
 const APIFeatures = require('../utils/apiFeatures');
 const Email = require('../utils/email');
+const { notifyEmployer, notifyApplicant } = require('../config/socket');
 
 // Create new application
 exports.applyJob = catchAsync(async (req, res, next) => {
@@ -50,12 +51,15 @@ exports.applyJob = catchAsync(async (req, res, next) => {
 
   const applicationInfo = await (
     await application.populate('applicant', 'name email')
-  ).populate('job', 'title company companyLogo');
+  ).populate('job', 'title company companyLogo employer');
 
   await new Email(applicationInfo.applicant, '', {
     application: applicationInfo,
   }).sendApplicationStatusUpdate();
 
+  notifyEmployer(applicationInfo.job.employer, applicationInfo.job.title);
+  console.log(applicationInfo)
+  
   res.status(201).json({
     status: 'success',
     message: 'Application successfully created',
@@ -184,6 +188,7 @@ exports.updateApplicationStatus = catchAsync(async (req, res, next) => {
   const applicant = application.applicant;
 
   await new Email(applicant, '', { application }).sendApplicationStatusUpdate();
+  notifyApplicant(applicant._id, application.status);
 
   res.status(201).json({
     status: 'success',

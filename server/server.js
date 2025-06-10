@@ -1,7 +1,9 @@
 const express = require('express');
+const http = require('http');
 const dotEnv = require('dotenv');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
+const { initSocket } = require('./config/socket');
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const jobRoutes = require('./routes/jobRoutes');
@@ -10,6 +12,7 @@ const applicationRoutes = require('./routes/applicationRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const employerRoutes = require('./routes/employerRoutes');
 const statisticsRoutes = require('./routes/statisticsRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 dotEnv.config();
 connectDB();
@@ -25,9 +28,14 @@ app.use('/api/v1/applications', applicationRoutes);
 app.use('/api/v1/employer', employerRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/statistics', statisticsRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
 
 app.use(globalErrorHandling);
 
+const server = http.createServer(app);
+
+initSocket(server); // Initialize socket
+
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => console.log(`✅ SERVER RUNNING ON PORT: ${PORT} :)`));
+server.listen(PORT, () => console.log(`✅ SERVER RUNNING ON PORT: ${PORT} :)`));
