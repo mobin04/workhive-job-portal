@@ -1,11 +1,14 @@
-import React from 'react'
+import React from 'react';
+import Header from './components/header/Header';
+import Home from './components/home/Home';
 
 function App() {
   return (
     <div>
-     <p className='text-amber-300'>HEllO_WORL</p>
+      <Header />
+      <Home />
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
